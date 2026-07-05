@@ -159,8 +159,11 @@ elif st.session_state.page == 'config':
                     if len(parts) >= 4:
                         forbidden_zones.append([float(p) for p in parts[:4]])
 
-        best_loc_eff = core.find_best_location(users, 6.873286, 101.295853, "efficiency", total_I, 1.7e-8, wire_size, 5, v_source, forbidden_zones)
-        best_loc_equ = core.find_best_location(users, 6.873286, 101.295853, "equity", total_I, 1.7e-8, wire_size, 5, v_source, forbidden_zones)
+        solar_lat = sum(u[0] for u in users) / len(users)
+        solar_lon = sum(u[1] for u in users) / len(users)
+
+        best_loc_eff = core.find_best_location(users, solar_lat, solar_lon, "efficiency", total_I, 1.7e-8, wire_size, 5, v_source, forbidden_zones)
+        best_loc_equ = core.find_best_location(users, solar_lat, solar_lon, "equity", total_I, 1.7e-8, wire_size, 5, v_source, forbidden_zones)
 
         if best_loc_eff and best_loc_equ:
             opt_lat_eff, opt_lon_eff, opt_e_loss_eff, opt_p_loss_eff, opt_dist_eff = best_loc_eff
