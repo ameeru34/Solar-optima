@@ -193,12 +193,15 @@ elif st.session_state.page == 'config':
             wire_saved = max(0, 500 - opt_dist_eff)
             direct_co2, indirect_co2 = core.calc_carbon_reduction(e_produced, wire_saved)
 
+            recommended_area = float(np.percentile(areas_eff + areas_equ, 90))
+
             st.session_state.results_data = {
                 'total_e_demand': total_E_demand,
                 'e_produced': e_produced,
                 'direct_co2': direct_co2,
                 'indirect_co2': indirect_co2,
                 'wire_saved': wire_saved,
+                'recommended_area': recommended_area,
                 'eff': {
                     'lat': opt_lat_eff, 'lon': opt_lon_eff, 'e_loss': opt_e_loss_eff,
                     'dist': opt_dist_eff, 'areas': areas_eff, 'reliability': reliability_eff,
@@ -370,6 +373,17 @@ elif st.session_state.page == 'result':
             ax.axvline(st.session_state.a_panel_limit, color='red', linestyle='--', label='Limit')
             ax.set_title("Required Area Dist.")
             st.pyplot(fig)
+
+            rec_area = rd.get('recommended_area', 0)
+            current_limit = st.session_state.a_panel_limit
+            if rec_area > current_limit:
+                st.warning(f"⚠️ {l.get('rec_area_msg', 'พื้นที่แผงปัจจุบันอาจไม่พอ')}: **{rec_area:.1f} m²** ({l.get('rec_area_note', 'สำหรับความมั่นใจ ~90%')})")
+                if st.button(f"✅ {l.get('btn_apply_area', 'ใช้พื้นที่ที่แนะนำ')} ({rec_area:.0f} m²)", width="stretch"):
+                    st.session_state.a_panel_limit = round(rec_area, 1)
+                    st.session_state.page = 'config'
+                    st.rerun()
+            else:
+                st.success(f"✅ {l.get('rec_area_ok', 'พื้นที่แผงปัจจุบันเพียงพอ')} ({l.get('rec_area_suggest', 'แนะนำ')}: {rec_area:.1f} m²)")
 
         st.divider()
 
