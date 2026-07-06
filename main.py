@@ -166,14 +166,19 @@ elif st.session_state.page == 'config':
                 if line.strip():
                     parts = line.split(",")
                     try:
-                        if len(parts) >= 2:
-                            forbidden_zones.append([float(parts[0]), float(parts[1])])
+                        if len(parts) >= 4:
+                            forbidden_zones.append([float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3])])
+                        else:
+                            st.warning(f"⚠️ โซนต้องห้ามบรรทัดที่ {i+1} ต้องมี 4 ค่า (lat_min, lat_max, lon_min, lon_max)")
                     except ValueError:
                         st.error(f"❌ ข้อมูลโซนต้องห้ามบรรทัดที่ {i+1} ไม่ถูกต้อง")
                         st.stop()       
 
-        best_loc_eff = core.find_best_location(users, 6.873286, 101.295853, "efficiency", total_I, 1.7e-8, wire_size, 5, v_source, forbidden_zones)
-        best_loc_equ = core.find_best_location(users, 6.873286, 101.295853, "equity", total_I, 1.7e-8, wire_size, 5, v_source, forbidden_zones)
+        solar_lat = sum(u[0] for u in users) / len(users)
+        solar_lon = sum(u[1] for u in users) / len(users)
+
+        best_loc_eff = core.find_best_location(users, solar_lat, solar_lon, "efficiency", total_I, 1.7e-8, wire_size, 5, v_source, forbidden_zones)
+        best_loc_equ = core.find_best_location(users, solar_lat, solar_lon, "equity", total_I, 1.7e-8, wire_size, 5, v_source, forbidden_zones)
 
         if best_loc_eff and best_loc_equ:
             opt_lat_eff, opt_lon_eff, opt_e_loss_eff, opt_p_loss_eff, opt_dist_eff = best_loc_eff
@@ -203,12 +208,15 @@ elif st.session_state.page == 'config':
             wire_saved = max(0, 500 - opt_dist_eff)
             direct_co2, indirect_co2 = core.calc_carbon_reduction(e_produced, wire_saved)
 
+            recommended_area = float(np.percentile(areas_eff + areas_equ, 90))
+
             st.session_state.results_data = {
                 'total_e_demand': total_E_demand,
                 'e_produced': e_produced,
                 'direct_co2': direct_co2,
                 'indirect_co2': indirect_co2,
                 'wire_saved': wire_saved,
+                'recommended_area': recommended_area,
                 'eff': {
                     'lat': opt_lat_eff, 'lon': opt_lon_eff, 'e_loss': opt_e_loss_eff,
                     'dist': opt_dist_eff, 'areas': areas_eff, 'reliability_eff': reliability_eff,
@@ -392,6 +400,17 @@ elif st.session_state.page == 'result':
             ax.axvline(st.session_state.a_panel_limit, color='red',linestyle='--',label='Limit')
             ax.set_title("Required Area Dist.")
             st.pyplot(fig)
+
+            rec_area = rd.get('recommended_area', 0)
+            current_limit = st.session_state.a_panel_limit
+            if rec_area > current_limit:
+                st.warning(f"⚠️ {l.get('rec_area_msg', 'พื้นที่แผงปัจจุบันอาจไม่พอ')}: **{rec_area:.1f} m²** ({l.get('rec_area_note', 'สำหรับความมั่นใจ ~90%')})")
+                if st.button(f"✅ {l.get('btn_apply_area', 'ใช้พื้นที่ที่แนะนำ')} ({rec_area:.0f} m²)", width="stretch"):
+                    st.session_state.a_panel_limit = round(rec_area, 1)
+                    st.session_state.page = 'config'
+                    st.rerun()
+            else:
+                st.success(f"✅ {l.get('rec_area_ok', 'พื้นที่แผงปัจจุบันเพียงพอ')} ({l.get('rec_area_suggest', 'แนะนำ')}: {rec_area:.1f} m²)")
 
         st.divider()
 
